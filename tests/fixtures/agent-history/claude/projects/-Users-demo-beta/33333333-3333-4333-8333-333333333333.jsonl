@@ -1,0 +1,2 @@
+{"type":"user","cwd":"/Users/demo/beta","gitBranch":"","sessionId":"33333333-3333-4333-8333-333333333333","timestamp":"2026-01-15T08:00:00.000Z","isSidechain":false,"message":{"role":"user","content":"transcribe the zoom recording from yesterday"}}
+{"type":"assistant","cwd":"/Users/demo/beta","gitBranch":"","sessionId":"33333333-3333-4333-8333-333333333333","timestamp":"2026-01-15T08:05:00.000Z","isSidechain":false,"message":{"role":"assistant","content":[{"type":"text","text":"The zoom recording is transcribed; summary saved to notes.md."}]}}

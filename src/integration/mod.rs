@@ -11,6 +11,7 @@ mod types;
 mod version;
 
 pub(crate) use actions::{install_target, uninstall_target};
+pub(crate) use env::claude_dir;
 #[cfg(test)]
 pub(crate) use env::integration_env_lock;
 pub(crate) use env::{
