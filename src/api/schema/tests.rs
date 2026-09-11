@@ -1433,3 +1433,108 @@ fn popup_close_request_round_trips() {
     assert_eq!(json["method"], "popup.close");
     assert_eq!(json["params"], serde_json::json!({}));
 }
+
+#[test]
+fn agent_history_requests_round_trip() {
+    use crate::api::schema::{AgentHistorySearchParams, EmptyParams, Method, Request};
+
+    let request = Request {
+        id: "1".into(),
+        method: Method::AgentHistorySearch(AgentHistorySearchParams {
+            query: "telegram bot".into(),
+            limit: Some(20),
+            deep: false,
+        }),
+    };
+    let json = serde_json::to_value(&request).expect("serialize");
+    assert_eq!(json["method"], "agent_history.search");
+    assert_eq!(json["params"]["query"], "telegram bot");
+    assert_eq!(json["params"]["limit"], 20);
+    assert_eq!(json["params"]["deep"], false);
+    let decoded: Request = serde_json::from_value(json).expect("deserialize");
+    assert_eq!(decoded, request);
+
+    let minimal: Request =
+        serde_json::from_str(r#"{"id":"2","method":"agent_history.search","params":{}}"#)
+            .expect("defaults");
+    assert_eq!(
+        minimal.method,
+        Method::AgentHistorySearch(AgentHistorySearchParams::default())
+    );
+
+    for (method, name) in [
+        (
+            Method::AgentHistoryStatus(EmptyParams::default()),
+            "agent_history.status",
+        ),
+        (
+            Method::AgentHistoryRefresh(EmptyParams::default()),
+            "agent_history.refresh",
+        ),
+    ] {
+        let json = serde_json::to_value(Request {
+            id: "3".into(),
+            method,
+        })
+        .expect("serialize");
+        assert_eq!(json["method"], name);
+    }
+}
+
+#[test]
+fn agent_resume_request_round_trips_with_defaults() {
+    use crate::api::schema::{AgentResumeParams, AgentResumePlacement, Method, Request};
+
+    let minimal: Request =
+        serde_json::from_str(r#"{"id":"1","method":"agent.resume","params":{"session_id":"abc"}}"#)
+            .expect("defaults");
+    assert_eq!(
+        minimal.method,
+        Method::AgentResume(AgentResumeParams {
+            agent: "claude".into(),
+            session_id: "abc".into(),
+            cwd: None,
+            focus: true,
+            placement: AgentResumePlacement::Tab,
+        })
+    );
+
+    let request = Request {
+        id: "2".into(),
+        method: Method::AgentResume(AgentResumeParams {
+            agent: "claude".into(),
+            session_id: "abc".into(),
+            cwd: Some("/tmp/project".into()),
+            focus: false,
+            placement: AgentResumePlacement::Workspace,
+        }),
+    };
+    let json = serde_json::to_value(&request).expect("serialize");
+    assert_eq!(json["method"], "agent.resume");
+    assert_eq!(json["params"]["placement"], "workspace");
+    assert_eq!(json["params"]["focus"], false);
+    let decoded: Request = serde_json::from_value(json).expect("deserialize");
+    assert_eq!(decoded, request);
+}
+
+#[test]
+fn agent_history_messages_request_round_trips() {
+    use crate::api::schema::{AgentHistoryMessagesParams, Method, Request};
+
+    let minimal: Request = serde_json::from_str(
+        r#"{"id":"1","method":"agent_history.messages","params":{"session_id":"abc"}}"#,
+    )
+    .expect("defaults");
+    assert_eq!(
+        minimal.method,
+        Method::AgentHistoryMessages(AgentHistoryMessagesParams {
+            agent: "claude".into(),
+            session_id: "abc".into(),
+            offset: None,
+            limit: None,
+        })
+    );
+    let json = serde_json::to_value(&minimal).expect("serialize");
+    assert_eq!(json["method"], "agent_history.messages");
+    assert!(json["params"].get("limit").is_none());
+}

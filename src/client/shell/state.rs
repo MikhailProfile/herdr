@@ -177,6 +177,11 @@ pub(super) struct ShellHitMap {
     pub(super) navigator_popup: Rect,
     pub(super) navigator_search: Rect,
     pub(super) navigator_rows: Vec<(Rect, ClientNavigatorTarget)>,
+    pub(super) history_popup: Rect,
+    pub(super) history_search: Rect,
+    pub(super) history_rows: Vec<(Rect, ClientHistoryTarget)>,
+    /// Largest useful preview scroll offset at the last render.
+    pub(super) history_preview_max_scroll: usize,
     pub(super) worktree_search: Rect,
     pub(super) worktree_rows: Vec<(Rect, usize)>,
     pub(super) help_popup: Rect,
@@ -336,6 +341,7 @@ pub(super) enum ClientShellOverlayKind {
     ConfirmClose,
     Help,
     Navigator,
+    AgentHistory,
     WorktreeCreate,
     WorktreeOpen,
     WorktreeRemove,
@@ -422,6 +428,61 @@ pub(super) struct ClientNavigatorOverlay {
     pub(super) scroll: usize,
     pub(super) filter: Option<ClientNavigatorFilter>,
     pub(super) expanded_workspaces: HashSet<(ClientEndpointId, String)>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum ClientHistoryTarget {
+    Project { project_path: String },
+    Session { agent: String, session_id: String },
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct ClientHistoryRow {
+    pub(super) depth: u8,
+    pub(super) label: String,
+    pub(super) meta: String,
+    /// Match tier marker for sessions: `T` title, `P` prompt, `~` transcript text.
+    pub(super) badge: &'static str,
+    /// Text for the detail line: project path, snippet, or first prompt.
+    pub(super) detail: String,
+    /// The project has an open workspace, or the session runs in a live pane.
+    pub(super) open: bool,
+    pub(super) collapsed: bool,
+    pub(super) target: ClientHistoryTarget,
+}
+
+/// Conversation preview of one session inside the agent history overlay.
+#[derive(Debug)]
+pub(super) struct ClientHistoryPreview {
+    pub(super) agent: String,
+    pub(super) session_id: String,
+    pub(super) title: String,
+    pub(super) messages: Vec<crate::agent_history::SessionMessage>,
+    pub(super) total: usize,
+    pub(super) truncated: bool,
+    /// First wrapped line shown; clamped during render.
+    pub(super) scroll: usize,
+    pub(super) loading: bool,
+}
+
+#[derive(Debug)]
+pub(super) struct ClientHistoryOverlay {
+    pub(super) preview: Option<ClientHistoryPreview>,
+    pub(super) query: String,
+    pub(super) search_focused: bool,
+    pub(super) selected: Option<ClientHistoryTarget>,
+    pub(super) scroll: usize,
+    pub(super) collapsed_projects: HashSet<String>,
+    /// Last applied `agent_history.search` result.
+    pub(super) groups: Vec<crate::api::schema::AgentHistoryProjectInfo>,
+    pub(super) results_query: String,
+    /// Generation of the newest request sent; responses carry their generation
+    /// so a slow older answer never overwrites a newer one.
+    pub(super) request_generation: u64,
+    pub(super) results_generation: u64,
+    pub(super) searching: bool,
+    pub(super) resuming: bool,
+    pub(super) error: Option<String>,
 }
 
 #[derive(Debug)]
@@ -634,6 +695,7 @@ pub(super) enum ClientShellOverlay {
     ConfirmClose(ClientConfirmCloseOverlay),
     Help(ClientHelpOverlay),
     Navigator(ClientNavigatorOverlay),
+    AgentHistory(ClientHistoryOverlay),
     WorktreeCreate(ClientWorktreeCreateOverlay),
     WorktreeOpen(ClientWorktreeOpenOverlay),
     WorktreeRemove(ClientWorktreeRemoveOverlay),
@@ -652,6 +714,7 @@ impl ClientShellOverlay {
             Self::ConfirmClose(_) => ClientShellOverlayKind::ConfirmClose,
             Self::Help(_) => ClientShellOverlayKind::Help,
             Self::Navigator(_) => ClientShellOverlayKind::Navigator,
+            Self::AgentHistory(_) => ClientShellOverlayKind::AgentHistory,
             Self::WorktreeCreate(_) => ClientShellOverlayKind::WorktreeCreate,
             Self::WorktreeOpen(_) => ClientShellOverlayKind::WorktreeOpen,
             Self::WorktreeRemove(_) => ClientShellOverlayKind::WorktreeRemove,
@@ -688,6 +751,15 @@ pub(super) enum PendingEndpointKind {
     WorktreeRemove {
         forced: bool,
     },
+    AgentHistorySearch {
+        generation: u64,
+    },
+    AgentHistoryRefresh,
+    AgentHistoryMessages {
+        agent: String,
+        session_id: String,
+    },
+    AgentResume,
     SelectionCopy,
     PaneScroll {
         pane_id: String,
@@ -924,6 +996,8 @@ pub(crate) struct ClientShellState {
     pub(super) last_composed_size: Option<(u16, u16)>,
     pub(super) last_composed_at: Option<std::time::Instant>,
     pub(super) selection_repaint_deadline: Option<std::time::Instant>,
+    /// Debounce deadline for the agent history overlay's next search request.
+    pub(super) history_search_deadline: Option<std::time::Instant>,
     pub(super) hits: ShellHitMap,
     pub(super) endpoints: Vec<ClientShellEndpoint>,
     pub(super) active_endpoint_id: ClientEndpointId,
@@ -1082,6 +1156,7 @@ impl ClientShellState {
             last_composed_size: None,
             last_composed_at: None,
             selection_repaint_deadline: None,
+            history_search_deadline: None,
             hits: ShellHitMap::default(),
             endpoints: vec![local_endpoint()],
             active_endpoint_id: ClientEndpointId::Local,
@@ -1264,6 +1339,7 @@ impl ClientShellState {
         self.last_composed_size = None;
         self.last_composed_at = None;
         self.selection_repaint_deadline = None;
+        self.history_search_deadline = None;
         self.pending_requests.clear();
         self.pane_scroll_in_flight.clear();
         self.pane_scroll_queued.clear();
@@ -1831,6 +1907,7 @@ impl ClientShellState {
         self.selection_autoscroll_deadline
             .into_iter()
             .chain(self.selection_repaint_deadline)
+            .chain(self.history_search_deadline)
             .min()
             .map(|deadline| deadline.saturating_duration_since(now).min(default))
             .unwrap_or(default)

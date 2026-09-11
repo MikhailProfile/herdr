@@ -534,6 +534,19 @@ resume_agents_on_restore = true
 
 Only panes with a valid native session reference from an official integration can resume; other panes restore as normal shells. See [Session state and restore](/docs/session-state/) for supported Agents and persistence behavior.
 
+## Agent history
+
+Herdr indexes past coding-agent sessions from their transcript directories (Claude Code's `~/.claude/projects` today) so they can be searched and resumed from the agent history overlay (`prefix+f`, see [Keyboard](/docs/keyboard/)), the CLI (`herdr agent history`, `herdr agent resume`), and the socket API (`agent_history.*`, `agent.resume`). Scans run in the background: once shortly after the server starts, again after an agent reports a new session, and every ten minutes; only changed transcripts are re-read.
+
+```toml
+[agent_history]
+enabled = true
+deep_search = true
+max_age_days = 0
+```
+
+`deep_search` caches the user and assistant text of each transcript under the Herdr state directory (owner-only files, up to 4 MB per session) so searches can match conversation text, not only titles and first prompts. Set it to `false` if transcripts may contain secrets you do not want copied. `max_age_days` skips transcripts last modified more than that many days ago; `0` keeps everything.
+
 ## IME cursor tracking
 
 On macOS, AI Agent TUIs that hide the hardware cursor can prevent native input-method candidate windows from following the focused pane. Reveal a cursor anchor for those panes with:

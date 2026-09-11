@@ -558,7 +558,11 @@ impl ClientShellState {
                 | PendingEndpointKind::WordSelection { .. }
                 | PendingEndpointKind::PaneLinkActivate { .. }
                 | PendingEndpointKind::CopyMotion { .. }
-                | PendingEndpointKind::CopySearch { .. },
+                | PendingEndpointKind::CopySearch { .. }
+                | PendingEndpointKind::AgentHistorySearch { .. }
+                | PendingEndpointKind::AgentHistoryRefresh
+                | PendingEndpointKind::AgentHistoryMessages { .. }
+                | PendingEndpointKind::AgentResume,
                 Err(_),
             ) => true,
         }

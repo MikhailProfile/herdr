@@ -1620,6 +1620,60 @@ impl ClientShellState {
             }
             return;
         }
+        if matches!(self.overlay, Some(ClientShellOverlay::AgentHistory(_))) {
+            let row_hit = self
+                .hits
+                .history_rows
+                .iter()
+                .find(|(rect, _)| super::contains(*rect, point))
+                .cloned();
+            match mouse.kind {
+                MouseEventKind::Moved => {
+                    if let Some((_, target)) = row_hit {
+                        if let Some(ClientShellOverlay::AgentHistory(overlay)) =
+                            self.overlay.as_mut()
+                        {
+                            overlay.selected = Some(target);
+                        }
+                        outcome.repaint = true;
+                    }
+                }
+                MouseEventKind::Down(MouseButton::Left) => {
+                    if super::contains(self.hits.history_search, point) {
+                        if let Some(ClientShellOverlay::AgentHistory(overlay)) =
+                            self.overlay.as_mut()
+                        {
+                            overlay.search_focused = true;
+                        }
+                        outcome.repaint = true;
+                    } else if let Some((_, target)) = row_hit {
+                        if let Some(ClientShellOverlay::AgentHistory(overlay)) =
+                            self.overlay.as_mut()
+                        {
+                            overlay.selected = Some(target);
+                        }
+                        self.accept_agent_history_selection(
+                            crate::api::schema::AgentResumePlacement::Tab,
+                            outcome,
+                        );
+                    } else if !super::contains(self.hits.history_popup, point) {
+                        self.overlay = None;
+                        self.history_search_deadline = None;
+                        outcome.repaint = true;
+                    }
+                }
+                MouseEventKind::ScrollUp => {
+                    self.scroll_agent_history(-3);
+                    outcome.repaint = true;
+                }
+                MouseEventKind::ScrollDown => {
+                    self.scroll_agent_history(3);
+                    outcome.repaint = true;
+                }
+                _ => {}
+            }
+            return;
+        }
         if self.overlay.is_some() {
             if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
                 return;

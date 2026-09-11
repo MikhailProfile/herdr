@@ -542,6 +542,12 @@
           "description": "Open the session navigator."
         },
         {
+          "key": "keys.history",
+          "type": "keybinding",
+          "default": "\"prefix+f\"",
+          "description": "Open the agent history search to find and resume past sessions."
+        },
+        {
           "key": "keys.navigate_workspace_up",
           "type": "keybinding",
           "default": "\"up\"",
@@ -1412,6 +1418,30 @@
           "type": "boolean",
           "default": "true",
           "description": "Resume supported AI-agent panes into their native conversation sessions when restoring a Herdr session."
+        }
+      ]
+    },
+    {
+      "id": "agent_history",
+      "title": "Agent history",
+      "keys": [
+        {
+          "key": "agent_history.enabled",
+          "type": "boolean",
+          "default": "true",
+          "description": "Index past coding-agent sessions from their transcript directories so they can be searched and resumed."
+        },
+        {
+          "key": "agent_history.deep_search",
+          "type": "boolean",
+          "default": "true",
+          "description": "Cache transcript text for full-text search. The cache is stored owner-only under the Herdr state directory."
+        },
+        {
+          "key": "agent_history.max_age_days",
+          "type": "integer",
+          "default": "0",
+          "description": "Ignore transcripts last modified more than this many days ago; 0 keeps everything."
         }
       ]
     },

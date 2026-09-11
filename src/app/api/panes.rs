@@ -1583,6 +1583,7 @@ impl App {
                 params.session_start_source,
             ),
         });
+        self.note_agent_session_reported_for_history();
 
         encode_success(id, ResponseResult::Ok {})
     }

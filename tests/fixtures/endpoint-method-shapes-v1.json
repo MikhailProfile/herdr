@@ -1,4 +1,9 @@
 {
+  "agent.resume": "2b2f6135ce8baaf6cef6a14138aad1c97bc0d28b1052e7e269303576d8847196",
+  "agent_history.messages": "6e743ddf207dbcd35ec3dc25a0772ed0916ecb39a71d26c9a5bfb8701c34c08c",
+  "agent_history.refresh": "ff19bae4f957a57d6999365882783c77308526afb5446162ea17c0f1e1374908",
+  "agent_history.search": "085e2ac766946039911c8916e55031ea92e371e7dd77c5f8bbce522af980c56a",
+  "agent_history.status": "9bb7ecf1f0d3bb018c4b9f6d7e00ba37f903a8e67c20a962c359d603c29881b1",
   "client_shell.surface.set": "919df2ba99fe7d5df003a051dbbaf9929998387c53ccb652b6262bd8e4650330",
   "command.invoke": "b16817652442b1ea2405e60a0443826a55baca461e938f524e79b16a675c5899",
   "integration.install": "913055b838166650fee6713332c1cc436efd4f8fae9a2064d8f9b6616a7a66f8",

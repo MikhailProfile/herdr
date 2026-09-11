@@ -340,7 +340,15 @@ herdr agent attach <target> [--takeover]
 herdr agent start <name> --kind KIND --pane ID [--timeout MS] [-- <agent-args...>]
 herdr agent explain <target> [--json|--verbose]
 herdr agent explain --file PATH --agent LABEL [--json|--verbose]
+herdr agent history [<query>...] [--limit N] [--no-deep] [--json]
+herdr agent history show <session-id> [--offset N] [--limit N] [--json]
+herdr agent history refresh|status [--json]
+herdr agent resume <session-id> [--agent claude] [--cwd PATH] [--workspace] [--no-focus] [--json]
 ```
+
+`agent resume` reopens a session listed by `agent history`: a new tab in the workspace whose checkout matches the session's project (or a new workspace when none is open, or always with `--workspace`), running `claude --resume <id>` through your shell. A session that is already open in a pane is focused instead. `--cwd` overrides the project directory and is required for sessions the index does not know.
+
+`agent history` searches past agent sessions indexed from Claude Code transcripts. Results are grouped by project directory and ranked with title matches first (`T`, including `/rename` titles), then first-prompt matches (`P`), then transcript text matches (`~`, shown with a snippet). Without a query it lists recent sessions. `show` prints the conversation of one session (user and assistant messages, oldest first). `--no-deep` skips transcript text, `--limit` caps the number of sessions, and `--json` prints the raw `agent_history.search` response. `refresh` rescans transcripts incrementally and `status` shows index size, last scan date, and the cache directory. See `[agent_history]` in [Configuration](/docs/configuration/) to disable indexing or text caching.
 
 Agent targets are either a unique live agent name or the pane ID that currently hosts the agent. Terminal IDs and bare agent-kind labels are not agent targets. Agents started through `agent start` require a name; manually launched agents remain unnamed and use their pane ID.
 

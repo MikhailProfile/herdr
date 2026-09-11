@@ -621,6 +621,10 @@ impl ClientShellState {
                 self.hits.navigator_popup = rendered.navigator_popup;
                 self.hits.navigator_search = rendered.navigator_search;
                 self.hits.navigator_rows = rendered.navigator_rows;
+                self.hits.history_popup = rendered.history_popup;
+                self.hits.history_search = rendered.history_search;
+                self.hits.history_rows = rendered.history_rows;
+                self.hits.history_preview_max_scroll = rendered.history_preview_max_scroll;
                 self.hits.worktree_search = rendered.worktree_search;
                 self.hits.worktree_rows = rendered.worktree_rows;
                 self.hits.help_popup = rendered.help_popup;

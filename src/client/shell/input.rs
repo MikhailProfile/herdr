@@ -468,6 +468,11 @@ impl ClientShellState {
                     search_focused: true,
                     ..
                 }))
+                | Some(ClientShellOverlay::AgentHistory(ClientHistoryOverlay {
+                    search_focused: true,
+                    resuming: false,
+                    ..
+                }))
                 | Some(ClientShellOverlay::Help(ClientHelpOverlay {
                     search_focused: true,
                     ..

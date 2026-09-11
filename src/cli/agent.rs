@@ -17,6 +17,8 @@ pub(super) fn run_agent_command(args: &[String]) -> std::io::Result<i32> {
 
     match subcommand {
         "list" => agent_list(&args[1..]),
+        "history" => agent_history(&args[1..]),
+        "resume" => agent_resume(&args[1..]),
         "get" => agent_get(&args[1..]),
         "read" => agent_read(&args[1..]),
         "send-keys" => agent_send_keys(&args[1..]),
@@ -923,9 +925,387 @@ fn agent_read(args: &[String]) -> std::io::Result<i32> {
     super::print_read_response(&response)
 }
 
+const AGENT_HISTORY_USAGE: &str =
+    "usage: herdr agent history [<query>...] [--limit N] [--no-deep] [--json]\n       herdr agent history show <session-id> [--agent claude] [--offset N] [--limit N] [--json]\n       herdr agent history refresh [--json]\n       herdr agent history status [--json]";
+
+fn agent_history(args: &[String]) -> std::io::Result<i32> {
+    use crate::api::schema::{AgentHistorySearchParams, EmptyParams, Method, Request};
+
+    match args.first().map(String::as_str) {
+        Some("show") => return agent_history_show(&args[1..]),
+        Some("refresh") | Some("status") => {
+            let json = match args[1..] {
+                [] => false,
+                [ref flag] if flag == "--json" => true,
+                _ => {
+                    eprintln!("{AGENT_HISTORY_USAGE}");
+                    return Ok(2);
+                }
+            };
+            let (id, method) = if args[0] == "refresh" {
+                (
+                    "cli:agent:history:refresh",
+                    Method::AgentHistoryRefresh(EmptyParams::default()),
+                )
+            } else {
+                (
+                    "cli:agent:history:status",
+                    Method::AgentHistoryStatus(EmptyParams::default()),
+                )
+            };
+            let response = super::send_request(&Request {
+                id: id.into(),
+                method,
+            })?;
+            if json || response.get("error").is_some() {
+                return super::print_response(&response);
+            }
+            print_agent_history_status_text(&response["result"]["status"]);
+            return Ok(0);
+        }
+        Some("help") | Some("--help") | Some("-h") => {
+            eprintln!("{AGENT_HISTORY_USAGE}");
+            return Ok(0);
+        }
+        _ => {}
+    }
+
+    let mut query_words = Vec::new();
+    let mut limit = None;
+    let mut deep = true;
+    let mut json = false;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--limit" => {
+                let Some(value) = args.get(index + 1) else {
+                    eprintln!("missing value for --limit");
+                    return Ok(2);
+                };
+                let parsed = match super::parse_u64_flag("--limit", value) {
+                    Ok(parsed) => parsed,
+                    Err(err) => {
+                        eprintln!("{err}");
+                        return Ok(2);
+                    }
+                };
+                limit = Some(u32::try_from(parsed).unwrap_or(u32::MAX));
+                index += 2;
+            }
+            "--no-deep" => {
+                deep = false;
+                index += 1;
+            }
+            "--json" => {
+                json = true;
+                index += 1;
+            }
+            value if value.starts_with('-') => {
+                eprintln!("unknown option: {value}");
+                eprintln!("{AGENT_HISTORY_USAGE}");
+                return Ok(2);
+            }
+            value => {
+                query_words.push(value.to_string());
+                index += 1;
+            }
+        }
+    }
+
+    let response = super::send_request(&Request {
+        id: "cli:agent:history:search".into(),
+        method: Method::AgentHistorySearch(AgentHistorySearchParams {
+            query: query_words.join(" "),
+            limit,
+            deep,
+        }),
+    })?;
+    if json || response.get("error").is_some() {
+        return super::print_response(&response);
+    }
+    print_agent_history_results_text(&response["result"]);
+    Ok(0)
+}
+
+const AGENT_RESUME_USAGE: &str = "usage: herdr agent resume <session-id> [--agent claude] [--cwd PATH] [--workspace] [--no-focus] [--json]";
+
+fn agent_resume(args: &[String]) -> std::io::Result<i32> {
+    use crate::api::schema::{AgentResumeParams, AgentResumePlacement, Method, Request};
+
+    let mut session_id = None;
+    let mut agent = "claude".to_string();
+    let mut cwd = None;
+    let mut placement = AgentResumePlacement::Tab;
+    let mut focus = true;
+    let mut json = false;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--agent" | "--cwd" => {
+                let flag = args[index].clone();
+                let Some(value) = args.get(index + 1) else {
+                    eprintln!("missing value for {flag}");
+                    return Ok(2);
+                };
+                if flag == "--agent" {
+                    agent = value.clone();
+                } else {
+                    cwd = Some(value.clone());
+                }
+                index += 2;
+            }
+            "--workspace" => {
+                placement = AgentResumePlacement::Workspace;
+                index += 1;
+            }
+            "--no-focus" => {
+                focus = false;
+                index += 1;
+            }
+            "--json" => {
+                json = true;
+                index += 1;
+            }
+            "help" | "--help" | "-h" => {
+                eprintln!("{AGENT_RESUME_USAGE}");
+                return Ok(0);
+            }
+            value if value.starts_with('-') => {
+                eprintln!("unknown option: {value}");
+                eprintln!("{AGENT_RESUME_USAGE}");
+                return Ok(2);
+            }
+            value if session_id.is_none() => {
+                session_id = Some(value.to_string());
+                index += 1;
+            }
+            _ => {
+                eprintln!("{AGENT_RESUME_USAGE}");
+                return Ok(2);
+            }
+        }
+    }
+    let Some(session_id) = session_id else {
+        eprintln!("{AGENT_RESUME_USAGE}");
+        return Ok(2);
+    };
+
+    let response = super::send_request(&Request {
+        id: "cli:agent:resume".into(),
+        method: Method::AgentResume(AgentResumeParams {
+            agent,
+            session_id,
+            cwd,
+            focus,
+            placement,
+        }),
+    })?;
+    if json || response.get("error").is_some() {
+        return super::print_response(&response);
+    }
+    let result = &response["result"];
+    let how = if result["focused_existing"].as_bool().unwrap_or(false) {
+        "already open, focused"
+    } else if result["reused_workspace"].as_bool().unwrap_or(false) {
+        "new tab in existing workspace"
+    } else {
+        "new workspace"
+    };
+    println!(
+        "{how}: workspace {} tab {} pane {}",
+        result["workspace"]["workspace_id"].as_str().unwrap_or(""),
+        result["tab"]["tab_id"].as_str().unwrap_or(""),
+        result["pane"]["pane_id"].as_str().unwrap_or("")
+    );
+    Ok(0)
+}
+
+fn agent_history_show(args: &[String]) -> std::io::Result<i32> {
+    use crate::api::schema::{AgentHistoryMessagesParams, Method, Request};
+
+    let mut session_id = None;
+    let mut agent = "claude".to_string();
+    let mut offset = None;
+    let mut limit = None;
+    let mut json = false;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            flag @ ("--agent" | "--offset" | "--limit") => {
+                let Some(value) = args.get(index + 1) else {
+                    eprintln!("missing value for {flag}");
+                    return Ok(2);
+                };
+                match flag {
+                    "--agent" => agent = value.clone(),
+                    _ => {
+                        let parsed = match super::parse_u64_flag(flag, value) {
+                            Ok(parsed) => u32::try_from(parsed).unwrap_or(u32::MAX),
+                            Err(err) => {
+                                eprintln!("{err}");
+                                return Ok(2);
+                            }
+                        };
+                        if flag == "--offset" {
+                            offset = Some(parsed);
+                        } else {
+                            limit = Some(parsed);
+                        }
+                    }
+                }
+                index += 2;
+            }
+            "--json" => {
+                json = true;
+                index += 1;
+            }
+            value if value.starts_with('-') => {
+                eprintln!("unknown option: {value}");
+                eprintln!("{AGENT_HISTORY_USAGE}");
+                return Ok(2);
+            }
+            value if session_id.is_none() => {
+                session_id = Some(value.to_string());
+                index += 1;
+            }
+            _ => {
+                eprintln!("{AGENT_HISTORY_USAGE}");
+                return Ok(2);
+            }
+        }
+    }
+    let Some(session_id) = session_id else {
+        eprintln!("{AGENT_HISTORY_USAGE}");
+        return Ok(2);
+    };
+    let response = super::send_request(&Request {
+        id: "cli:agent:history:show".into(),
+        method: Method::AgentHistoryMessages(AgentHistoryMessagesParams {
+            agent,
+            session_id,
+            offset,
+            limit,
+        }),
+    })?;
+    if json || response.get("error").is_some() {
+        return super::print_response(&response);
+    }
+    let conversation = &response["result"]["conversation"];
+    println!(
+        "{}  [{}]  {}  {} message{}{}",
+        conversation["title"].as_str().unwrap_or("(untitled)"),
+        conversation["session_id"].as_str().unwrap_or(""),
+        conversation["project_path"].as_str().unwrap_or(""),
+        conversation["total"].as_u64().unwrap_or(0),
+        if conversation["total"].as_u64() == Some(1) {
+            ""
+        } else {
+            "s"
+        },
+        if conversation["truncated"].as_bool().unwrap_or(false) {
+            " (truncated)"
+        } else {
+            ""
+        }
+    );
+    for message in conversation["messages"].as_array().into_iter().flatten() {
+        let role = match message["role"].as_str() {
+            Some("user") => "YOU",
+            Some("assistant") => "ASSISTANT",
+            Some(other) => other,
+            None => "",
+        };
+        println!();
+        println!("{role}");
+        for line in message["text"].as_str().unwrap_or("").lines() {
+            println!("  {line}");
+        }
+    }
+    Ok(0)
+}
+
+fn print_agent_history_results_text(result: &serde_json::Value) {
+    let groups = result["groups"].as_array();
+    let Some(groups) = groups.filter(|groups| !groups.is_empty()) else {
+        match result["query"].as_str() {
+            Some(query) if !query.is_empty() => println!("no sessions match {query:?}"),
+            _ => println!("no indexed sessions yet (try `herdr agent history refresh`)"),
+        }
+        return;
+    };
+    for group in groups {
+        let sessions = group["sessions"].as_array();
+        let count = sessions.map_or(0, Vec::len);
+        let workspace = group["workspace_id"]
+            .as_str()
+            .map(|id| format!("  [open: {id}]"))
+            .unwrap_or_default();
+        println!(
+            "{}  {}  ({count} session{}){workspace}",
+            group["label"].as_str().unwrap_or(""),
+            group["project_path"].as_str().unwrap_or(""),
+            if count == 1 { "" } else { "s" }
+        );
+        for session in sessions.into_iter().flatten() {
+            let badge = match session["match_tier"].as_str() {
+                Some("title") => "T",
+                Some("prompt") => "P",
+                Some("text") => "~",
+                _ => " ",
+            };
+            let date = session["last_ts_ms"]
+                .as_i64()
+                .map(crate::agent_history::format_date_ms)
+                .unwrap_or_default();
+            let title = session["title"]
+                .as_str()
+                .filter(|title| !title.is_empty())
+                .or_else(|| session["first_prompt"].as_str())
+                .unwrap_or("");
+            let id = session["session_id"].as_str().unwrap_or("");
+            let open = session["open_pane_id"]
+                .as_str()
+                .map(|pane| format!("  (open in {pane})"))
+                .unwrap_or_default();
+            println!("  {badge} {date}  {title}  [{id}]{open}");
+            if let Some(text) = session["snippet"]["text"].as_str() {
+                println!(
+                    "      {}: {text}",
+                    session["snippet"]["role"].as_str().unwrap_or("")
+                );
+            }
+        }
+    }
+}
+
+fn print_agent_history_status_text(status: &serde_json::Value) {
+    let last_scan = match status["last_scan_ms"].as_i64() {
+        Some(ms) if ms > 0 => crate::agent_history::format_date_ms(ms),
+        _ => "never".to_string(),
+    };
+    println!(
+        "enabled: {}  deep search: {}  indexing: {}",
+        status["enabled"].as_bool().unwrap_or(false),
+        status["deep_search"].as_bool().unwrap_or(false),
+        status["indexing"].as_bool().unwrap_or(false)
+    );
+    println!(
+        "sessions: {}  projects: {}  last scan: {last_scan}",
+        status["sessions"].as_u64().unwrap_or(0),
+        status["projects"].as_u64().unwrap_or(0)
+    );
+    println!("cache: {}", status["cache_dir"].as_str().unwrap_or(""));
+}
+
 fn print_agent_help() {
     eprintln!("herdr agent commands:");
     eprintln!("  herdr agent list");
+    eprintln!("  herdr agent history [<query>...] [--limit N] [--no-deep] [--json]");
+    eprintln!("  herdr agent history show <session-id> [--offset N] [--limit N] [--json]");
+    eprintln!("  herdr agent history refresh|status [--json]");
+    eprintln!(
+        "  herdr agent resume <session-id> [--agent claude] [--cwd PATH] [--workspace] [--no-focus] [--json]"
+    );
     eprintln!("  herdr agent get <target>");
     eprintln!("  herdr agent read <target> [--source visible|recent|recent-unwrapped|detection] [--lines N] [--format text|ansi] [--ansi]");
     eprintln!("  herdr agent send-keys <target> <key> [key ...]");

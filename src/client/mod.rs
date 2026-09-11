@@ -2009,6 +2009,9 @@ async fn run_client_loop(
                     let (effects, outcome, frame) = {
                         let shell = state.shell.as_mut().expect("checked shell mode");
                         let mut outcome = shell.tick_selection_autoscroll(now);
+                        let history = shell.tick_agent_history_search(now);
+                        outcome.repaint |= history.repaint;
+                        outcome.actions.extend(history.actions);
                         for expired in expired_endpoints {
                             if !shell.endpoint_is_active(&expired.endpoint_id) {
                                 continue;

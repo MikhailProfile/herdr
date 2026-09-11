@@ -11,6 +11,7 @@ const NESTED_HERDR_MESSAGES: [&str; 6] = [
     "recursion detected. base case not found. aborting.",
 ];
 
+mod agent_history;
 mod agent_resume;
 mod api;
 mod app;
@@ -148,6 +149,7 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # open_notification_target = "prefix+o"
 # workspace_picker = "prefix+w"
 # goto = "prefix+g"
+# history = "prefix+f"
 # new_workspace = "prefix+shift+n"
 # new_worktree = "prefix+shift+g"
 # open_worktree = ""    # optional, unset by default
@@ -391,6 +393,16 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # Resume supported AI-agent panes into their native conversation sessions after
 # a Herdr server restart. Requires official integrations that report session refs.
 # resume_agents_on_restore = true
+
+[agent_history]
+# Index past coding-agent sessions (Claude Code transcripts) so `prefix+f`,
+# `herdr agent history`, and the socket API can search and resume them.
+# enabled = true
+# Cache transcript text for full-text search under the Herdr state directory
+# (owner-only files). Set false to index only titles and first prompts.
+# deep_search = true
+# Ignore transcripts last modified more than this many days ago; 0 keeps all.
+# max_age_days = 0
 
 [remote]
 # Whether herdr manages the ssh config used for `herdr --remote`.

@@ -1222,6 +1222,65 @@
     },
     "request": {
       "$defs": {
+        "AgentHistoryMessagesParams": {
+          "description": "Parameters for `agent_history.messages`.",
+          "properties": {
+            "agent": {
+              "default": "claude",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Maximum messages returned. Defaults to 400.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "offset": {
+              "description": "Skip this many messages from the start of the conversation.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "session_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "session_id"
+          ],
+          "type": "object"
+        },
+        "AgentHistorySearchParams": {
+          "description": "Parameters for `agent_history.search`.",
+          "properties": {
+            "deep": {
+              "default": true,
+              "description": "Also search cached transcript text, not only titles and first prompts.",
+              "type": "boolean"
+            },
+            "limit": {
+              "description": "Maximum sessions returned across all projects. Defaults to 200.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "query": {
+              "default": "",
+              "description": "Search text. Every whitespace-separated term must match; an empty query lists\nrecent sessions.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
         "AgentPromptParams": {
           "properties": {
             "target": {
@@ -1313,6 +1372,55 @@
             "target"
           ],
           "type": "object"
+        },
+        "AgentResumeParams": {
+          "description": "Parameters for `agent.resume`.",
+          "properties": {
+            "agent": {
+              "default": "claude",
+              "description": "Agent kind; only `claude` is supported today.",
+              "type": "string"
+            },
+            "cwd": {
+              "description": "Directory to resume in. Defaults to the project directory recorded in the\nagent history index; required for sessions the index does not know.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "focus": {
+              "default": true,
+              "description": "Focus the resumed pane. Default: true.",
+              "type": "boolean"
+            },
+            "placement": {
+              "$ref": "#/schemas/request/$defs/AgentResumePlacement",
+              "default": "tab"
+            },
+            "session_id": {
+              "description": "Native session id reported by the agent (Claude Code session UUID).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "session_id"
+          ],
+          "type": "object"
+        },
+        "AgentResumePlacement": {
+          "description": "Where a resumed session should be opened.",
+          "oneOf": [
+            {
+              "const": "tab",
+              "description": "New tab in the workspace whose checkout matches the project; a new\nworkspace is created when none matches.",
+              "type": "string"
+            },
+            {
+              "const": "workspace",
+              "description": "Always a new workspace for the project directory.",
+              "type": "string"
+            }
+          ]
         },
         "AgentSendKeysParams": {
           "properties": {
@@ -5294,6 +5402,86 @@
         {
           "properties": {
             "method": {
+              "const": "agent_history.search",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/schemas/request/$defs/AgentHistorySearchParams"
+            }
+          },
+          "required": [
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "method": {
+              "const": "agent_history.status",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/schemas/request/$defs/EmptyParams"
+            }
+          },
+          "required": [
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "method": {
+              "const": "agent_history.refresh",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/schemas/request/$defs/EmptyParams"
+            }
+          },
+          "required": [
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "method": {
+              "const": "agent_history.messages",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/schemas/request/$defs/AgentHistoryMessagesParams"
+            }
+          },
+          "required": [
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "method": {
+              "const": "agent.resume",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/schemas/request/$defs/AgentResumeParams"
+            }
+          },
+          "required": [
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "method": {
               "const": "agent.list",
               "type": "string"
             },
@@ -6606,6 +6794,219 @@
     },
     "success_response": {
       "$defs": {
+        "AgentHistoryMessagesInfo": {
+          "description": "Conversation excerpt returned by `agent_history.messages`.",
+          "properties": {
+            "agent": {
+              "type": "string"
+            },
+            "messages": {
+              "items": {
+                "$ref": "#/schemas/success_response/$defs/SessionMessage"
+              },
+              "type": "array"
+            },
+            "offset": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "project_path": {
+              "type": "string"
+            },
+            "session_id": {
+              "type": "string"
+            },
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "total": {
+              "description": "Messages in the whole conversation.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "truncated": {
+              "description": "Some messages were left out by `limit`, or a message was cut at its\ncharacter cap.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "agent",
+            "session_id",
+            "project_path",
+            "total",
+            "offset",
+            "truncated",
+            "messages"
+          ],
+          "type": "object"
+        },
+        "AgentHistoryProjectInfo": {
+          "description": "Sessions grouped under one project directory.",
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "project_path": {
+              "type": "string"
+            },
+            "sessions": {
+              "items": {
+                "$ref": "#/schemas/success_response/$defs/AgentHistorySessionInfo"
+              },
+              "type": "array"
+            },
+            "workspace_id": {
+              "description": "Open workspace whose checkout matches this project, when one exists.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "project_path",
+            "label",
+            "sessions"
+          ],
+          "type": "object"
+        },
+        "AgentHistorySessionInfo": {
+          "description": "One past session in a search result.",
+          "properties": {
+            "agent": {
+              "type": "string"
+            },
+            "first_prompt": {
+              "type": "string"
+            },
+            "first_ts_ms": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "git_branch": {
+              "type": "string"
+            },
+            "last_ts_ms": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "match_tier": {
+              "anyOf": [
+                {
+                  "$ref": "#/schemas/success_response/$defs/MatchTier"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Where the query matched; absent for an empty query."
+            },
+            "message_count": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "open_pane_id": {
+              "description": "Public pane id currently hosting this session, when it is already open.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "project_path": {
+              "type": "string"
+            },
+            "score": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "session_id": {
+              "type": "string"
+            },
+            "snippet": {
+              "anyOf": [
+                {
+                  "$ref": "#/schemas/success_response/$defs/Snippet"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "title_kind": {
+              "$ref": "#/schemas/success_response/$defs/TitleKind"
+            }
+          },
+          "required": [
+            "agent",
+            "session_id",
+            "title_kind",
+            "first_prompt",
+            "project_path",
+            "git_branch",
+            "first_ts_ms",
+            "last_ts_ms",
+            "message_count",
+            "score"
+          ],
+          "type": "object"
+        },
+        "AgentHistoryStatusInfo": {
+          "description": "Index status returned by `agent_history.status` and `agent_history.refresh`.",
+          "properties": {
+            "cache_dir": {
+              "type": "string"
+            },
+            "deep_search": {
+              "description": "Whether transcript text is cached for deep search.",
+              "type": "boolean"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "indexing": {
+              "description": "A scan is currently running in the background.",
+              "type": "boolean"
+            },
+            "last_scan_ms": {
+              "description": "Unix milliseconds of the last completed scan; zero when never scanned.",
+              "format": "int64",
+              "type": "integer"
+            },
+            "projects": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "sessions": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "deep_search",
+            "indexing",
+            "sessions",
+            "projects",
+            "last_scan_ms",
+            "cache_dir"
+          ],
+          "type": "object"
+        },
         "AgentInfo": {
           "properties": {
             "agent": {
@@ -7830,6 +8231,15 @@
               "type": "object"
             }
           ]
+        },
+        "MatchTier": {
+          "description": "Where the best match for a session was found.",
+          "enum": [
+            "title",
+            "prompt",
+            "text"
+          ],
+          "type": "string"
         },
         "NotificationShowReason": {
           "enum": [
@@ -9240,6 +9650,106 @@
             },
             {
               "properties": {
+                "deep": {
+                  "type": "boolean"
+                },
+                "groups": {
+                  "items": {
+                    "$ref": "#/schemas/success_response/$defs/AgentHistoryProjectInfo"
+                  },
+                  "type": "array"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "type": {
+                  "const": "agent_history_results",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "query",
+                "deep",
+                "groups"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "status": {
+                  "$ref": "#/schemas/success_response/$defs/AgentHistoryStatusInfo"
+                },
+                "type": {
+                  "const": "agent_history_status",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "status"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "conversation": {
+                  "$ref": "#/schemas/success_response/$defs/AgentHistoryMessagesInfo"
+                },
+                "type": {
+                  "const": "agent_history_messages",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "conversation"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "argv": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "focused_existing": {
+                  "description": "A live pane already hosted the session, so it was focused instead of relaunched.",
+                  "type": "boolean"
+                },
+                "pane": {
+                  "$ref": "#/schemas/success_response/$defs/PaneInfo"
+                },
+                "reused_workspace": {
+                  "description": "The session was opened in a workspace that already matched its project.",
+                  "type": "boolean"
+                },
+                "tab": {
+                  "$ref": "#/schemas/success_response/$defs/TabInfo"
+                },
+                "type": {
+                  "const": "agent_resumed",
+                  "type": "string"
+                },
+                "workspace": {
+                  "$ref": "#/schemas/success_response/$defs/WorkspaceInfo"
+                }
+              },
+              "required": [
+                "type",
+                "workspace",
+                "tab",
+                "pane",
+                "reused_workspace",
+                "focused_existing",
+                "argv"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
                 "type": {
                   "const": "workspace_info",
                   "type": "string"
@@ -10557,6 +11067,23 @@
           ],
           "type": "object"
         },
+        "SessionMessage": {
+          "description": "One user or assistant message.",
+          "properties": {
+            "role": {
+              "description": "`user` or `assistant`.",
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "role",
+            "text"
+          ],
+          "type": "object"
+        },
         "SessionSnapshot": {
           "properties": {
             "agents": {
@@ -10627,6 +11154,22 @@
           ],
           "type": "object"
         },
+        "Snippet": {
+          "description": "Context around a transcript hit.",
+          "properties": {
+            "role": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "role",
+            "text"
+          ],
+          "type": "object"
+        },
         "SplitDirection": {
           "enum": [
             "right",
@@ -10672,6 +11215,31 @@
             "agent_status"
           ],
           "type": "object"
+        },
+        "TitleKind": {
+          "description": "Where a session's title came from, in priority order.",
+          "oneOf": [
+            {
+              "const": "custom",
+              "description": "Set explicitly by the user (`/rename` in Claude Code).",
+              "type": "string"
+            },
+            {
+              "const": "ai",
+              "description": "Generated by the agent.",
+              "type": "string"
+            },
+            {
+              "const": "summary",
+              "description": "Conversation summary written by older agent builds.",
+              "type": "string"
+            },
+            {
+              "const": "none",
+              "description": "No title recorded; callers fall back to the first prompt.",
+              "type": "string"
+            }
+          ]
         },
         "WorkspaceInfo": {
           "properties": {

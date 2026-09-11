@@ -398,6 +398,7 @@ impl HeadlessServer {
         let should_quit = self.should_quit.clone();
         let quit_notify = self.server_event_tx.clone();
         ctrlc_handler(should_quit, quit_notify);
+        self.app.schedule_agent_history_startup_scan(Instant::now());
 
         let mut needs_render = true;
         let mut needs_full_render = true;
@@ -3333,6 +3334,7 @@ impl HeadlessServer {
         if self.has_app_client() {
             self.app.start_git_status_refresh_if_due(now);
         }
+        self.app.start_agent_history_scan_if_due(now);
 
         if self
             .app

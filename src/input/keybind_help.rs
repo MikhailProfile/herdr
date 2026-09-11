@@ -115,6 +115,7 @@ pub(crate) fn keybind_help_groups(
                     "workspace navigation",
                 ),
                 entry(binding_label(&keybinds.goto), "session navigator"),
+                entry(binding_label(&keybinds.history), "agent history search"),
                 entry(binding_label(&keybinds.new_workspace), "new workspace"),
                 entry(binding_label(&keybinds.new_worktree), "new worktree"),
                 entry(binding_label(&keybinds.open_worktree), "open worktree"),

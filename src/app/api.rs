@@ -1,5 +1,7 @@
 use std::time::{Duration, Instant};
 
+mod agent_history;
+mod agent_resume;
 mod agent_view;
 mod agents;
 mod env;
@@ -34,6 +36,10 @@ impl App {
                 results,
                 cache_updates,
             } => self.handle_git_status_refreshed(results, cache_updates),
+            AppEvent::AgentHistoryIndexed { index, report } => {
+                self.handle_agent_history_indexed(*index, report);
+                false
+            }
             AppEvent::TabBarCommandFinished {
                 generation,
                 segment_index,
@@ -113,6 +119,11 @@ impl App {
         } = ev
         {
             self.handle_git_status_refreshed(results, cache_updates);
+            return Vec::new();
+        }
+
+        if let AppEvent::AgentHistoryIndexed { index, report } = ev {
+            self.handle_agent_history_indexed(*index, report);
             return Vec::new();
         }
 
@@ -1053,6 +1064,15 @@ impl App {
             Method::TabRename(params) => return self.handle_tab_rename(request.id, params),
             Method::TabMove(params) => return self.handle_tab_move(request.id, params),
             Method::TabClose(target) => return self.handle_tab_close(request.id, target),
+            Method::AgentHistorySearch(params) => {
+                return self.handle_agent_history_search(request.id, params)
+            }
+            Method::AgentHistoryStatus(_) => return self.handle_agent_history_status(request.id),
+            Method::AgentHistoryRefresh(_) => return self.handle_agent_history_refresh(request.id),
+            Method::AgentHistoryMessages(params) => {
+                return self.handle_agent_history_messages(request.id, params)
+            }
+            Method::AgentResume(params) => return self.handle_agent_resume(request.id, params),
             Method::AgentList(_) => return self.handle_agent_list(request.id),
             Method::AgentGet(target) => return self.handle_agent_get(request.id, target),
             Method::AgentFocus(target) => return self.handle_agent_focus(request.id, target),

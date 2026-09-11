@@ -278,6 +278,30 @@ impl Default for SessionConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(default)]
+pub struct AgentHistoryConfig {
+    /// Index past coding-agent sessions from their transcript directories so they
+    /// can be searched and resumed. Default: true.
+    pub enabled: bool,
+    /// Cache transcript text for full-text search. The cache is stored owner-only
+    /// under the Herdr state directory. Default: true.
+    pub deep_search: bool,
+    /// Ignore transcripts last modified more than this many days ago; 0 keeps
+    /// everything. Default: 0.
+    pub max_age_days: u32,
+}
+
+impl Default for AgentHistoryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            deep_search: true,
+            max_age_days: 0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ConfigReloadStatus {
@@ -312,6 +336,7 @@ pub struct Config {
     pub theme: ThemeConfig,
     pub terminal: TerminalConfig,
     pub session: SessionConfig,
+    pub agent_history: AgentHistoryConfig,
     pub server: ServerConfig,
     pub update: UpdateConfig,
     pub keys: KeysConfig,
@@ -353,6 +378,8 @@ pub struct KeysConfig {
     pub workspace_picker: BindingConfig,
     /// Open the session navigator. Default: "prefix+g"
     pub goto: BindingConfig,
+    /// Open the agent history search to find and resume past sessions. Default: "prefix+f"
+    pub history: BindingConfig,
     /// Move workspace selection up in navigate mode. Default: "up".
     pub navigate_workspace_up: BindingConfig,
     /// Move workspace selection down in navigate mode. Default: "down".
@@ -484,6 +511,7 @@ pub(crate) struct KeysConfigOverlay {
     workspace_picker: Option<BindingConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     goto: Option<BindingConfig>,
+    history: Option<BindingConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     navigate_workspace_up: Option<BindingConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -620,6 +648,7 @@ impl<'de> Deserialize<'de> for KeysConfig {
         apply_field!(close_workspace);
         apply_field!(workspace_picker);
         apply_field!(goto);
+        apply_field!(history);
         apply_field!(navigate_workspace_up);
         apply_field!(navigate_workspace_down);
         apply_field!(navigate_pane_left);
@@ -724,6 +753,7 @@ impl KeysConfig {
         copy_effective_action_field!(close_workspace, keybinds.close_workspace);
         copy_effective_action_field!(workspace_picker, keybinds.workspace_picker);
         copy_effective_action_field!(goto, keybinds.goto);
+        copy_effective_action_field!(history, keybinds.history);
         copy_effective_action_field!(navigate_workspace_up, keybinds.navigate.workspace_up);
         copy_effective_action_field!(navigate_workspace_down, keybinds.navigate.workspace_down);
         copy_effective_action_field!(navigate_pane_left, keybinds.navigate.pane_left);
@@ -1092,6 +1122,7 @@ impl Default for KeysConfig {
             close_workspace: BindingConfig::one("prefix+shift+d"),
             workspace_picker: BindingConfig::one("prefix+w"),
             goto: BindingConfig::one("prefix+g"),
+            history: BindingConfig::one("prefix+f"),
             navigate_workspace_up: BindingConfig::one("up"),
             navigate_workspace_down: BindingConfig::one("down"),
             navigate_pane_left: BindingConfig::one("h"),
@@ -1386,6 +1417,25 @@ new_cwd = "~/Projects"
             config.terminal.new_cwd,
             NewTerminalCwdConfig::Path("~/Projects".into())
         );
+    }
+
+    #[test]
+    fn agent_history_defaults_on_and_parses() {
+        let default_config = Config::default();
+        assert!(default_config.agent_history.enabled);
+        assert!(default_config.agent_history.deep_search);
+        assert_eq!(default_config.agent_history.max_age_days, 0);
+
+        let toml = r#"
+[agent_history]
+enabled = false
+deep_search = false
+max_age_days = 30
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert!(!config.agent_history.enabled);
+        assert!(!config.agent_history.deep_search);
+        assert_eq!(config.agent_history.max_age_days, 30);
     }
 
     #[test]

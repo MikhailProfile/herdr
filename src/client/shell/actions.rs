@@ -48,6 +48,10 @@ impl ClientShellState {
                     outcome.repaint = true;
                     return;
                 }
+                if action == crate::input::KeybindAction::OpenAgentHistory {
+                    self.open_agent_history_overlay(outcome);
+                    return;
+                }
                 if action == crate::input::KeybindAction::Help {
                     self.overlay = Some(ClientShellOverlay::Help(ClientHelpOverlay {
                         query: String::new(),
@@ -885,6 +889,14 @@ impl ClientShellState {
             kind @ (PendingEndpointKind::IntegrationList
             | PendingEndpointKind::IntegrationInstall) => {
                 return self.handle_settings_endpoint_result(kind, result);
+            }
+            kind @ (PendingEndpointKind::AgentHistorySearch { .. }
+            | PendingEndpointKind::AgentHistoryRefresh
+            | PendingEndpointKind::AgentHistoryMessages { .. }
+            | PendingEndpointKind::AgentResume) => {
+                let mut outcome = ClientShellInput::default();
+                let repaint = self.handle_agent_history_endpoint_result(kind, result, &mut outcome);
+                return (repaint || outcome.repaint, outcome.actions);
             }
             kind => {
                 let mut outcome = ClientShellInput::default();

@@ -13,6 +13,11 @@ pub(crate) const MAX_ENDPOINT_REQUEST_ID_BYTES: usize = 128;
 const ENDPOINT_RESPONSE_CHUNK_BYTES: usize = 512 * 1024;
 
 const CLIENT_SHELL_METHODS: &[&str] = &[
+    "agent.resume",
+    "agent_history.messages",
+    "agent_history.refresh",
+    "agent_history.search",
+    "agent_history.status",
     "client_shell.surface.set",
     "command.invoke",
     "integration.install",

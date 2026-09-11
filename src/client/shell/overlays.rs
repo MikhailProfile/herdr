@@ -1,5 +1,6 @@
 use super::*;
 
+mod agent_history_overlay;
 mod settings_overlay;
 mod worktree_overlays;
 
@@ -11,6 +12,10 @@ pub(crate) struct OverlayRender {
     pub(crate) navigator_popup: Rect,
     pub(crate) navigator_search: Rect,
     pub(crate) navigator_rows: Vec<(Rect, ClientNavigatorTarget)>,
+    pub(crate) history_popup: Rect,
+    pub(crate) history_search: Rect,
+    pub(crate) history_rows: Vec<(Rect, ClientHistoryTarget)>,
+    pub(crate) history_preview_max_scroll: usize,
     pub(crate) worktree_search: Rect,
     pub(crate) worktree_rows: Vec<(Rect, usize)>,
     pub(crate) help_popup: Rect,
@@ -41,6 +46,7 @@ pub(crate) fn render_client_overlay(
     if !matches!(
         o,
         ClientShellOverlay::Navigator(_)
+            | ClientShellOverlay::AgentHistory(_)
             | ClientShellOverlay::ContextMenu(_)
             | ClientShellOverlay::GlobalMenu(_)
     ) {
@@ -62,6 +68,9 @@ pub(crate) fn render_client_overlay(
         ClientShellOverlay::Help(v) => render_help_overlay(b, v, k, p),
         ClientShellOverlay::Navigator(v) => {
             render_navigator_overlay(b, v, endpoints, active_endpoint_id, p)
+        }
+        ClientShellOverlay::AgentHistory(v) => {
+            agent_history_overlay::render_agent_history_overlay(b, v, p)
         }
         ClientShellOverlay::Settings(v) => {
             settings_overlay::render_settings_overlay(b, v, s.integration_updates_available, p)

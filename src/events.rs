@@ -154,6 +154,11 @@ pub enum AppEvent {
         results: Vec<WorkspaceGitStatus>,
         cache_updates: Vec<(std::path::PathBuf, GitStatusCacheEntry)>,
     },
+    /// A background agent history scan finished.
+    AgentHistoryIndexed {
+        index: Box<crate::agent_history::Index>,
+        report: crate::agent_history::ScanReport,
+    },
     /// A configured tab bar status command finished.
     TabBarCommandFinished {
         generation: u64,

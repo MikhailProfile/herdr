@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub mod agent_history;
+pub mod agent_resume;
 pub mod agents;
 pub mod commands;
 pub mod common;
@@ -14,6 +16,8 @@ pub mod tabs;
 pub mod workspaces;
 pub mod worktrees;
 
+pub use agent_history::*;
+pub use agent_resume::*;
 pub use agents::*;
 pub use commands::*;
 pub use common::*;
@@ -113,6 +117,16 @@ pub enum Method {
     TabMove(TabMoveParams),
     #[serde(rename = "tab.close")]
     TabClose(TabTarget),
+    #[serde(rename = "agent_history.search")]
+    AgentHistorySearch(AgentHistorySearchParams),
+    #[serde(rename = "agent_history.status")]
+    AgentHistoryStatus(EmptyParams),
+    #[serde(rename = "agent_history.refresh")]
+    AgentHistoryRefresh(EmptyParams),
+    #[serde(rename = "agent_history.messages")]
+    AgentHistoryMessages(AgentHistoryMessagesParams),
+    #[serde(rename = "agent.resume")]
+    AgentResume(AgentResumeParams),
     #[serde(rename = "agent.list")]
     AgentList(EmptyParams),
     #[serde(rename = "agent.get")]

@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+use super::agent_history::{
+    AgentHistoryMessagesInfo, AgentHistoryProjectInfo, AgentHistoryStatusInfo,
+};
 use super::agents::AgentInfo;
 use super::common::{ClientWindowTitleReason, NotificationShowReason};
 use super::events::EventEnvelope;
@@ -50,6 +53,27 @@ pub enum ResponseResult {
     },
     SessionSnapshot {
         snapshot: Box<SessionSnapshot>,
+    },
+    AgentHistoryResults {
+        query: String,
+        deep: bool,
+        groups: Vec<AgentHistoryProjectInfo>,
+    },
+    AgentHistoryStatus {
+        status: AgentHistoryStatusInfo,
+    },
+    AgentHistoryMessages {
+        conversation: AgentHistoryMessagesInfo,
+    },
+    AgentResumed {
+        workspace: WorkspaceInfo,
+        tab: TabInfo,
+        pane: PaneInfo,
+        /// The session was opened in a workspace that already matched its project.
+        reused_workspace: bool,
+        /// A live pane already hosted the session, so it was focused instead of relaunched.
+        focused_existing: bool,
+        argv: Vec<String>,
     },
     WorkspaceInfo {
         workspace: WorkspaceInfo,

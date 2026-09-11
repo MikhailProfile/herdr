@@ -318,6 +318,49 @@ fn agent_command() -> Command {
     Command::new("agent")
         .about("Control and inspect agent panes")
         .subcommand(Command::new("list").about("List agents"))
+        .subcommand(
+            Command::new("history")
+                .about("Search past agent sessions")
+                .args_conflicts_with_subcommands(true)
+                .arg(
+                    Arg::new("query")
+                        .value_name("QUERY")
+                        .num_args(0..)
+                        .help("Search text; omit to list recent sessions"),
+                )
+                .arg(option("limit", "N"))
+                .arg(flag("no-deep").help("Skip cached transcript text"))
+                .arg(flag("json"))
+                .subcommand(
+                    Command::new("show")
+                        .about("Print the conversation of a past agent session")
+                        .arg(required("session-id", "SESSION_ID"))
+                        .arg(option("agent", "KIND").value_parser(["claude"]))
+                        .arg(option("offset", "N"))
+                        .arg(option("limit", "N"))
+                        .arg(flag("json")),
+                )
+                .subcommand(
+                    Command::new("refresh")
+                        .about("Rescan agent transcripts now")
+                        .arg(flag("json")),
+                )
+                .subcommand(
+                    Command::new("status")
+                        .about("Show agent history index status")
+                        .arg(flag("json")),
+                ),
+        )
+        .subcommand(
+            Command::new("resume")
+                .about("Resume a past agent session in a new tab or workspace")
+                .arg(required("session-id", "SESSION_ID"))
+                .arg(option("agent", "KIND").value_parser(["claude"]))
+                .arg(path_option("cwd", "PATH"))
+                .arg(flag("workspace").help("Always open a new workspace for the project"))
+                .arg(flag("no-focus"))
+                .arg(flag("json")),
+        )
         .subcommand(id_command("get", "target", "Show an agent"))
         .subcommand(
             Command::new("read")
@@ -1158,6 +1201,41 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn agent_history_spec_matches_runtime() {
+        let cmd = command_path(&super::command(), &["agent", "history"]).clone();
+        for option in ["limit", "no-deep", "json"] {
+            assert!(has_option(&cmd, option), "missing --{option}");
+        }
+        assert!(argument(&cmd, "query").is_positional());
+        let root = super::command();
+        let show = command_path(&root, &["agent", "history", "show"]);
+        assert!(argument(show, "session-id").is_required_set());
+        for option in ["agent", "offset", "limit", "json"] {
+            assert!(has_option(show, option), "history show missing --{option}");
+        }
+        for name in ["refresh", "status"] {
+            let sub = command_path(&root, &["agent", "history", name]);
+            assert!(
+                has_option(sub, "json"),
+                "history {name} should accept --json"
+            );
+        }
+        super::command()
+            .try_get_matches_from(["herdr", "agent", "history", "telegram", "bot", "--no-deep"])
+            .expect("query words parse");
+        super::command()
+            .try_get_matches_from(["herdr", "agent", "history", "status", "--json"])
+            .expect("status parses");
+
+        let resume = command_path(&root, &["agent", "resume"]);
+        for option in ["agent", "cwd", "workspace", "no-focus", "json"] {
+            assert!(has_option(resume, option), "missing --{option}");
+        }
+        assert!(argument(resume, "session-id").is_required_set());
+        assert_eq!(option_values(resume, "agent"), vec!["claude".to_string()]);
     }
 
     #[test]

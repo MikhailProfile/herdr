@@ -76,15 +76,27 @@ pub fn persisted_session_from_launch_args(
     let [command, session_id] = args else {
         return None;
     };
-    if agent != crate::detect::Agent::Codex || command != "resume" || session_id.starts_with('-') {
+    if session_id.starts_with('-') {
         return None;
     }
+    let (source, label) = match (agent, command.as_str()) {
+        (crate::detect::Agent::Codex, "resume") => ("herdr:codex", "codex"),
+        (crate::detect::Agent::Claude, "--resume") => ("herdr:claude", "claude"),
+        _ => return None,
+    };
 
     Some(PersistedAgentSession {
-        source: "herdr:codex".into(),
-        agent: "codex".into(),
+        source: source.into(),
+        agent: label.into(),
         session_ref: AgentSessionRef::id(session_id.clone())?,
     })
+}
+
+/// Session reference and argv plan for resuming a Claude Code session by id.
+pub fn claude_resume_plan(session_id: &str) -> Option<(AgentSessionRef, AgentResumePlan)> {
+    let session_ref = AgentSessionRef::id(session_id.to_string())?;
+    let plan = plan("herdr:claude", "claude", &session_ref)?;
+    Some((session_ref, plan))
 }
 
 pub fn normalize_session_start_source(value: Option<String>) -> Option<String> {
@@ -286,6 +298,55 @@ mod tests {
             .join(name)
             .display()
             .to_string()
+    }
+
+    #[test]
+    fn launch_args_persist_claude_and_codex_resume_sessions() {
+        let claude = persisted_session_from_launch_args(
+            crate::detect::Agent::Claude,
+            &["--resume".to_string(), "abc-123".to_string()],
+        )
+        .expect("claude resume args persist");
+        assert_eq!(claude.source, "herdr:claude");
+        assert_eq!(claude.agent, "claude");
+        assert_eq!(claude.session_ref.value, "abc-123");
+
+        let codex = persisted_session_from_launch_args(
+            crate::detect::Agent::Codex,
+            &["resume".to_string(), "sess".to_string()],
+        )
+        .expect("codex resume args persist");
+        assert_eq!(codex.source, "herdr:codex");
+
+        assert!(persisted_session_from_launch_args(
+            crate::detect::Agent::Claude,
+            &["resume".to_string(), "abc".to_string()],
+        )
+        .is_none());
+        assert!(persisted_session_from_launch_args(
+            crate::detect::Agent::Claude,
+            &["--resume".to_string(), "--flag".to_string()],
+        )
+        .is_none());
+        assert!(persisted_session_from_launch_args(
+            crate::detect::Agent::Claude,
+            &["--resume".to_string()],
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn claude_resume_plan_builds_argv_and_rejects_bad_ids() {
+        let (session_ref, plan) =
+            claude_resume_plan("8001ceb0-f5cc-4b99-8451-2bce8b04d117").expect("valid id");
+        assert_eq!(session_ref.kind, AgentSessionRefKind::Id);
+        assert_eq!(
+            plan.argv,
+            vec!["claude", "--resume", "8001ceb0-f5cc-4b99-8451-2bce8b04d117"]
+        );
+        assert_eq!(plan.agent, "claude");
+        assert!(claude_resume_plan("").is_none());
+        assert!(claude_resume_plan("bad\nid").is_none());
     }
 
     #[test]

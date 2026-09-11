@@ -38,6 +38,7 @@ pub(crate) fn request_changes_ui(request: &Request) -> bool {
             | Method::WorktreeCreate(_)
             | Method::WorktreeOpen(_)
             | Method::WorktreeRemove(_)
+            | Method::AgentResume(_)
             | Method::TabCreate(_)
             | Method::TabFocus(_)
             | Method::TabRename(_)
