@@ -16,15 +16,16 @@ Details: `PLAN-agent-history-search.md`.
 
 ## Install (macOS, prebuilt binary)
 
-Download the asset for your CPU from the latest release of this repository
-(`herdr-macos-aarch64` for Apple Silicon, `herdr-macos-x86_64` for Intel), then:
+The repository is private, so download with the GitHub CLI (`brew install gh && gh auth login`),
+picking `herdr-macos-aarch64` for Apple Silicon or `herdr-macos-x86_64` for Intel:
 
 ```bash
 mkdir -p ~/.local/bin
-mv ~/Downloads/herdr-macos-aarch64 ~/.local/bin/herdr
+gh release download --repo MikhailProfile/herdr --pattern herdr-macos-aarch64 --output ~/.local/bin/herdr --clobber
 chmod +x ~/.local/bin/herdr
-xattr -d com.apple.quarantine ~/.local/bin/herdr 2>/dev/null || true   # unsigned binary
 ```
+
+(If you were handed the file another way, also run `xattr -d com.apple.quarantine ~/.local/bin/herdr`; the binary is unsigned.)
 
 Make sure `~/.local/bin` comes before `/opt/homebrew/bin` in your `PATH` (or uninstall the
 Homebrew `herdr`). Then:
