@@ -16,16 +16,15 @@ Details: `PLAN-agent-history-search.md`.
 
 ## Install (macOS, prebuilt binary)
 
-The repository is private, so download with the GitHub CLI (`brew install gh && gh auth login`),
-picking `herdr-macos-aarch64` for Apple Silicon or `herdr-macos-x86_64` for Intel:
+Pick `herdr-macos-aarch64` for Apple Silicon or `herdr-macos-x86_64` for Intel:
 
 ```bash
 mkdir -p ~/.local/bin
-gh release download --repo MikhailProfile/herdr --pattern herdr-macos-aarch64 --output ~/.local/bin/herdr --clobber
+curl -fsSL -o ~/.local/bin/herdr \
+  https://github.com/MikhailProfile/herdr/releases/download/v0.9.0-history.1/herdr-macos-aarch64
 chmod +x ~/.local/bin/herdr
+xattr -d com.apple.quarantine ~/.local/bin/herdr 2>/dev/null || true
 ```
-
-(If you were handed the file another way, also run `xattr -d com.apple.quarantine ~/.local/bin/herdr`; the binary is unsigned.)
 
 Make sure `~/.local/bin` comes before `/opt/homebrew/bin` in your `PATH` (or uninstall the
 Homebrew `herdr`). Then:
@@ -52,7 +51,7 @@ rescanned in the background; transcript text is cached under `~/.local/state/her
 Requires Rust (pinned by `rust-toolchain.toml`), Zig 0.16.0, and about three minutes:
 
 ```bash
-git clone <this repository> herdr && cd herdr
+git clone https://github.com/MikhailProfile/herdr.git && cd herdr
 cargo build --release --locked
 ./target/release/herdr --version
 ```
